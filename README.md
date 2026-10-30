@@ -28,4 +28,34 @@ A deep learning project that classifies images as **cat** or **dog** using trans
 - Input size: 224 x 224
 - Class labels: 0 = cat, 1 = dog
 
-##
+## Repository Structure
+
+    model/
+      cat_dog_model.keras     full trained model
+      cat_dog.weights.h5      model weights
+      training_curves.png     accuracy and loss curves
+    src/
+      check_data.py           counts images and checks for corrupt files
+      train.py                trains and evaluates the model
+      predict.py              predicts a single image
+    requirements.txt
+
+## How to Run
+
+    pip install -r requirements.txt
+    python src/train.py
+    python src/predict.py path/to/image.jpg
+
+Example output: `Prediction: dog (92.8% confidence)`
+
+## Project Links
+
+- Live demo (Vercel): TO BE ADDED
+- Project report: TO BE ADDED
+- Presentation: TO BE ADDED
+- YouTube video: TO BE ADDED
+- LinkedIn post: TO BE ADDED
+
+## Author
+
+Eshal Afzal Sial
