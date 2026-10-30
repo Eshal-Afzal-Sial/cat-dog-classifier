@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cat vs Dog Image Classifier</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 820px; margin: 0 auto; padding: 24px; line-height: 1.6; color: #222; background: #fafafa; }
+  h1 { margin-bottom: 4px; }
+  h2 { margin-top: 36px; border-bottom: 2px solid #ddd; padding-bottom: 4px; }
+  table { border-collapse: collapse; margin: 8px 0; }
+  td, th { border: 1px solid #ccc; padding: 6px 12px; text-align: left; }
+  #demo { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+  #preview { max-width: 280px; max-height: 280px; display: none; margin-top: 12px; border-radius: 6px; }
+  #result { font-size: 1.3em; font-weight: bold; margin-top: 12px; }
+  code { background: #eee; padding: 2px 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1>Cat vs Dog Image Classifier</h1>
+<p>A deep learning project that classifies an image as <b>cat</b> or <b>dog</b> using transfer learning with MobileNetV2 (TensorFlow/Keras). By Eshal Afzal Sial.</p>
+
+<h2>Live Demo</h2>
+<div id="demo">
+  <p>Choose a cat or dog photo. The model runs inside your browser, and the image is not uploaded anywhere.</p>
+  <input type="file" id="file" accept="image/*">
+  <br>
+  <img id="preview" alt="Selected image preview">
+  <div id="result">Loading model...</div>
+</div>
+
+<h2>Results</h2>
+<table>
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Test accuracy</td><td>98.86%</td></tr>
+  <tr><td>Best validation accuracy</td><td>99.38%</td></tr>
+  <tr><td>Test loss</td><td>0.0344</td></tr>
+</table>
+
+<h2>Dataset Details</h2>
+<ul>
+  <li><b>Name:</b> Cat and Dog (by tongpython, Kaggle, secondary dataset)</li>
+  <li><b>Link:</b> <a href="https://www.kaggle.com/datasets/tongpython/cat-and-dog">https://www.kaggle.com/datasets/tongpython/cat-and-dog</a></li>
+  <li><b>Size:</b> about 10,000 images in two balanced classes</li>
+  <li><b>Train:</b> 4,000 cats and 4,005 dogs (80% training, 20% validation)</li>
+  <li><b>Test:</b> 1,011 cats and 1,012 dogs</li>
+</ul>
+
+<h2>Model and Code Details</h2>
+<ul>
+  <li><b>Base model:</b> MobileNetV2 pre-trained on ImageNet (frozen)</li>
+  <li><b>Head:</b> Global Average Pooling, Dropout (0.2), Dense (1, sigmoid)</li>
+  <li><b>Augmentation:</b> random horizontal flip, rotation, zoom</li>
+  <li><b>Training:</b> Adam optimizer (learning rate 1e-3), binary cross-entropy loss, input size 224 x 224, batch size 32</li>
+  <li><b>Code:</b> <code>src/train.py</code> (training), <code>src/predict.py</code> (prediction), <code>src/check_data.py</code> (data check), <code>src/convert_onnx.py</code> (ONNX export for this web demo)</li>
+  <li><b>Weights:</b> <code>model/cat_dog_model.keras</code> and <code>model/cat_dog.weights.h5</code> in the GitHub repository</li>
+</ul>
+
+<h2>Project Links</h2>
+<ul>
+  <li>GitHub repository: <a href="https://github.com/Eshal-Afzal-Sial/cat-dog-classifier">https://github.com/Eshal-Afzal-Sial/cat-dog-classifier</a></li>
+  <li>Project report: TO BE ADDED</li>
+  <li>Presentation: TO BE ADDED</li>
+  <li>YouTube video: TO BE ADDED</li>
+  <li>LinkedIn post: TO BE ADDED</li>
+</ul>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/ort.min.js"></script>
+<script>
+  ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.1/dist/";
+  const resultEl = document.getElementById("result");
+  const previewEl = document.getElementById("preview");
+  const fileEl = document.getElementById("file");
+  let session = null;
+
+  async function loadModel() {
+    try {
+      session = await ort.InferenceSession.create("cat_dog_model.onnx");
+      resultEl.textContent = "Model ready. Choose an image.";
+    } catch (e) {
+      resultEl.textContent = "Could not load the model: " + e;
+    }
+  }
+
+  fileEl.addEventListener("change", function () {
+    const file = fileEl.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    previewEl.onload = function () { classify(); };
+    previewEl.src = url;
+    previewEl.style.display = "block";
+  });
+
+  async function classify() {
+    if (!session) { resultEl.textContent = "Model is still loading, try again in a moment."; return; }
+    const canvas = document.createElement("canvas");
+    canvas.width = 224; canvas.height = 224;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(previewEl, 0, 0, 224, 224);
+    const data = ctx.getImageData(0, 0, 224, 224).data;
+    const input = new Float32Array(224 * 224 * 3);
+    for (let i = 0, j = 0; i < data.length; i += 4) {
+      input[j++] = data[i];
+      input[j++] = data[i + 1];
+      input[j++] = data[i + 2];
+    }
+    const tensor = new ort.Tensor("float32", input, [1, 224, 224, 3]);
+    const feeds = {};
+    feeds[session.inputNames[0]] = tensor;
+    const output = await session.run(feeds);
+    const p = output[session.outputNames[0]].data[0];
+    const label = p > 0.5 ? "Dog" : "Cat";
+    const conf = p > 0.5 ? p : 1 - p;
+    if (conf < 0.7) {
+      resultEl.textContent = "Not sure (best guess: " + label + ", " + (conf * 100).toFixed(1) + "% confidence)";
+    } else {
+      resultEl.textContent = "Prediction: " + label + " (" + (conf * 100).toFixed(1) + "% confidence)";
+    }
+  }
+
+  loadModel();
+</script>
+
+</body>
+</html>
